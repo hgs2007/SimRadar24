@@ -1,0 +1,68 @@
+[
+  {
+    "key": "UAE|B77W",
+    "outputPath": "./defaults/UAE_B77W.jpg",
+    "commonsFileTitle": "File:Emirates Boeing 777-300ER.JPG",
+    "width": 1600
+  },
+  {
+    "key": "SWA|B738",
+    "outputPath": "./defaults/SWA_B738.jpg",
+    "commonsFileTitle": "File:N8702L Southwest Boeing 737-800.jpg",
+    "width": 1600
+  },
+  {
+    "key": "DAL|A359",
+    "outputPath": "./defaults/DAL_A359.jpg",
+    "commonsFileTitle": "File:Delta Air Lines Airbus A350-900 N512DN.jpg",
+    "width": 1600
+  },
+  {
+    "key": "AAL|A320",
+    "outputPath": "./defaults/AAL_A320.jpg",
+    "commonsFileTitle": "",
+    "width": 1600
+  },
+  {
+    "key": "BAW|A380",
+    "outputPath": "./defaults/BAW_A380.png",
+    "commonsFileTitle": "",
+    "width": 1600
+  },
+  {
+    "key": "DLH|A333",
+    "outputPath": "./defaults/DLH_A333.png",
+    "commonsFileTitle": "",
+    "width": 1600
+  },
+  {
+    "key": "DLH|A343",
+    "outputPath": "./defaults/DLH_A343.jpg",
+    "commonsFileTitle": "",
+    "width": 1600
+  },
+  {
+    "key": "DLH|A350",
+    "outputPath": "./defaults/DLH_A350.png",
+    "commonsFileTitle": "",
+    "width": 1600
+  },
+  {
+    "key": "QFA|A350",
+    "outputPath": "./defaults/QFA_A350.png",
+    "commonsFileTitle": "",
+    "width": 1600
+  },
+  {
+    "key": "QFA|A380",
+    "outputPath": "./defaults/QFA_A380.png",
+    "commonsFileTitle": "",
+    "width": 1600
+  },
+  {
+    "key": "SHT|A320",
+    "outputPath": "./defaults/SHT_A320.png",
+    "commonsFileTitle": "",
+    "width": 1600
+  }
+]

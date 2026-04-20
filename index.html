@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VATSIM Scope</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <main class="workspace workspace--compact">
+        <section class="panel panel-map">
+          <div id="mapFloatingSearch" class="map-floating-search is-compact">
+            <div id="mapSearchMeta" class="map-search-meta is-hidden">
+              <p class="panel-kicker">Search Flights</p>
+              <p id="lastUpdated" class="muted">Waiting for first sync</p>
+            </div>
+
+            <label id="searchOverlayField" class="search search--overlay">
+              <input
+                id="searchInput"
+                type="search"
+                placeholder="SWA123, KDEN, B738, Jane Doe"
+                autocomplete="off"
+              />
+            </label>
+
+            <div id="mapSearchExtras" class="map-search-extras is-hidden">
+              <div class="legend">
+                <span><i class="dot dot-airborne"></i> Airborne</span>
+                <span><i class="dot dot-ground"></i> Ground</span>
+                <span><i class="dot dot-filter"></i> Selected</span>
+              </div>
+
+              <div id="flightList" class="flight-list flight-list--overlay" aria-live="polite"></div>
+            </div>
+            <button
+              id="searchPanelHandle"
+              class="map-search-handle"
+              type="button"
+              aria-label="Collapse or expand search panel"
+              aria-pressed="false"
+            ></button>
+          </div>
+
+            <div class="map-toolbar">
+              <div class="map-toolbar-spacer"></div>
+              <div class="toolbar-actions">
+                <button id="followButton" class="ghost-button" type="button" aria-pressed="false">
+                  Follow
+                </button>
+              <button id="refreshButton" class="ghost-button" type="button">
+                Refresh Now
+              </button>
+            </div>
+          </div>
+          <div id="map" class="map" aria-label="Live VATSIM flight map"></div>
+        </section>
+
+        <aside class="right-rail">
+          <section class="stats-strip">
+            <div class="hero-stats hero-stats--sidebar">
+              <section>
+                <span id="totalFlights">0</span>
+                <label>Tracked Flights</label>
+              </section>
+              <section>
+                <span id="activeDepartures">0</span>
+                <label>With Flight Plans</label>
+              </section>
+              <button id="recommendedAirportCard" class="hero-stat-button" type="button">
+                <span id="averageAltitude">--</span>
+                <label>Recommended Departure Airport</label>
+              </button>
+            </div>
+          </section>
+
+          <aside class="panel panel-details">
+            <div class="panel-head">
+              <div>
+                <p id="detailModeLabel" class="panel-kicker">Flight Detail</p>
+                <h2 id="detailCallsign">Select a flight</h2>
+                <button id="detailBackButton" class="ghost-button detail-back-button is-hidden" type="button">
+                  Back
+                </button>
+              </div>
+              <div id="detailStatus" class="detail-status">
+                <div id="detailAirlineBadge" class="airline-badge airline-badge--empty">No airline</div>
+                <div class="detail-flight-state">
+                  <span id="detailFlightState" class="flight-state-pill">idle</span>
+                  <span id="detailFlightEta" class="flight-state-subline is-hidden"></span>
+                </div>
+              </div>
+            </div>
+
+              <div class="detail-photo">
+                <img
+                  id="aircraftPhoto"
+                  alt="Selected aircraft"
+                  decoding="async"
+                  fetchpriority="high"
+                  loading="eager"
+                  src="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1200&q=80"
+                />
+              </div>
+
+            <div id="detailRouteChip" class="detail-route-chip is-hidden" aria-hidden="true"></div>
+
+            <dl class="detail-grid" id="detailGrid">
+              <div>
+                <dt>Pilot</dt>
+                <dd>Waiting</dd>
+              </div>
+              <div>
+                <dt>Aircraft</dt>
+                <dd>Waiting</dd>
+              </div>
+              <div>
+                <dt>Route</dt>
+                <dd>Waiting</dd>
+              </div>
+              <div>
+                <dt>Altitude</dt>
+                <dd>Waiting</dd>
+              </div>
+              <div>
+                <dt>Ground Speed</dt>
+                <dd>Waiting</dd>
+              </div>
+              <div>
+                <dt>Heading</dt>
+                <dd>Waiting</dd>
+              </div>
+              <div>
+                <dt>Transponder</dt>
+                <dd>Waiting</dd>
+              </div>
+              <div>
+                <dt>Remarks</dt>
+                <dd>Waiting</dd>
+              </div>
+            </dl>
+
+            <p id="routeSummary" class="detail-note detail-note--hidden" aria-hidden="true"></p>
+          </aside>
+        </aside>
+      </main>
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="./airlines-data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
