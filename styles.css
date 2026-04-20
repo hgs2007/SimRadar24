@@ -10,6 +10,10 @@
   --accent-warm: #ffb14a;
   --danger: #ff6b6b;
   --shadow: 0 22px 80px rgba(1, 8, 18, 0.5);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
 
 * {
@@ -1036,53 +1040,312 @@ input {
   }
 }
 
+@media (max-width: 980px) {
+  .workspace {
+    grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
+  }
+
+  .panel-map {
+    min-height: 68vh;
+  }
+
+  .right-rail {
+    grid-template-rows: auto auto;
+  }
+
+  .stats-strip {
+    padding: 12px;
+  }
+
+  .hero-stats--sidebar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .panel-details {
+    max-height: none;
+    overflow: visible;
+    padding-right: 20px;
+  }
+}
+
 @media (max-width: 780px) {
+  html,
+  body {
+    min-height: 100%;
+  }
+
   .shell {
-    width: min(100vw - 18px, 100%);
-    margin: 9px auto;
+    width: calc(100vw - 12px - var(--safe-left) - var(--safe-right));
+    margin: calc(6px + var(--safe-top)) auto calc(6px + var(--safe-bottom));
+    height: auto;
   }
 
   .panel-map,
   .stats-strip,
   .panel-details {
-    border-radius: 20px;
+    border-radius: 18px;
+  }
+
+  .panel-map {
+    min-height: 74vh;
+  }
+
+  .stats-strip {
+    padding: 10px;
+  }
+
+  .hero-stats--sidebar {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .map-floating-search {
+    width: min(320px, calc(100% - 24px));
+    left: 12px;
+    right: auto;
+    top: calc(12px + var(--safe-top));
+    padding: 12px 12px 20px;
+    gap: 8px;
+    border-radius: 18px;
+  }
+
+  .map-floating-search.is-compact {
+    width: min(320px, calc(100% - 24px));
+  }
+
+  .map-floating-search.is-minimized {
+    width: min(320px, calc(100% - 24px));
+    min-height: 0;
+    padding: 10px 12px 16px;
+  }
+
+  .map-search-meta {
+    gap: 8px;
+  }
+
+  .map-search-meta .panel-kicker,
+  .map-search-meta .muted {
+    font-size: 0.7rem;
+  }
+
+  .map-search-extras {
+    gap: 8px;
+  }
+
+  .flight-list--overlay {
+    max-height: min(42vh, 360px);
+  }
+
+  .legend {
+    gap: 10px;
+    font-size: 0.72rem;
+  }
+
+  .search input {
+    padding: 12px 14px;
+    border-radius: 14px;
+  }
+
+  .map-toolbar {
+    top: calc(96px + var(--safe-top));
+    right: calc(12px + var(--safe-right));
+    left: auto;
+    justify-content: flex-end;
+    margin-top: 0;
+  }
+
+  .toolbar-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: auto;
+  }
+
+  .ghost-button {
+    padding: 11px 14px;
+    border-radius: 14px;
+    min-width: 124px;
+  }
+
+  .leaflet-top.leaflet-right {
+    top: calc(216px + var(--safe-top));
+    right: calc(12px + var(--safe-right));
+    margin: 0;
+  }
+
+  .panel-details {
+    padding: 16px 14px 18px;
+    gap: 14px;
+    overflow: auto;
+  }
+
+  .panel-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .detail-status {
+    flex: 0 1 auto;
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .detail-flight-state {
+    align-items: flex-start;
+  }
+
+  .flight-state-subline {
+    text-align: left;
+  }
+
+  .detail-photo {
+    min-height: 210px;
+    height: 210px;
+  }
+
+  .detail-route-chip {
+    width: fit-content;
+    max-width: 100%;
+    font-size: 0.82rem;
+    padding: 9px 14px;
   }
 
   .detail-grid {
     grid-template-columns: 1fr;
   }
 
-  .detail-status {
-    flex: 0 1 auto;
-    justify-content: flex-start;
+  .detail-grid > .detail-grid-card {
+    padding: 13px 14px;
   }
 
-  .map {
-    min-height: 440px;
+  .airport-overview-grid {
+    grid-template-columns: 1fr;
   }
 
-  .map-floating-search {
-    width: calc(100% - 24px);
-    left: 12px;
-    top: 12px;
-    right: 12px;
+  .airport-overview-tile,
+  .airport-overview-button {
+    padding: 16px 18px;
+  }
+
+  .airport-board-head,
+  .airport-board-row {
+    grid-template-columns: minmax(0, 1fr) 84px minmax(110px, 1fr);
+    gap: 10px;
+  }
+
+  .airport-board-head {
+    padding: 0 2px;
+    font-size: 0.66rem;
+  }
+
+  .airport-board-row {
+    padding: 12px 14px;
+  }
+
+  .airport-board-flight {
+    font-size: 0.92rem;
+  }
+
+  .airport-board-destination,
+  .airport-board-status {
+    font-size: 0.82rem;
+  }
+}
+
+@media (max-width: 540px) {
+  .shell {
+    width: calc(100vw - 8px - var(--safe-left) - var(--safe-right));
+    margin: calc(4px + var(--safe-top)) auto calc(4px + var(--safe-bottom));
+  }
+
+  .workspace {
+    gap: 8px;
+  }
+
+  .panel-map,
+  .stats-strip,
+  .panel-details {
+    border-radius: 16px;
+  }
+
+  .panel-map {
+    min-height: 72vh;
+  }
+
+  .map-floating-search,
+  .map-floating-search.is-compact,
+  .map-floating-search.is-minimized {
+    width: min(304px, calc(100% - 16px));
+    left: 8px;
+    top: calc(8px + var(--safe-top));
+    right: auto;
+    padding: 10px 10px 18px;
   }
 
   .map-toolbar {
-    top: 12px;
-    right: 12px;
-    left: 12px;
-    justify-content: flex-end;
-    margin-top: 132px;
+    top: calc(84px + var(--safe-top));
+    right: calc(8px + var(--safe-right));
+    bottom: auto;
+  }
+
+  .toolbar-actions {
+    gap: 6px;
+  }
+
+  .ghost-button {
+    min-width: 112px;
+    padding: 10px 12px;
   }
 
   .leaflet-top.leaflet-right {
-    top: 152px;
-    right: 12px;
-    margin: 0;
+    top: calc(194px + var(--safe-top));
+    right: calc(8px + var(--safe-right));
   }
 
-  .hero-stats--sidebar {
-    grid-template-columns: 1fr;
+  .stats-strip {
+    padding: 8px;
+  }
+
+  .hero-stats span {
+    font-size: clamp(1.2rem, 7vw, 1.8rem);
+  }
+
+  .panel-details {
+    padding: 14px 12px 16px;
+  }
+
+  .airline-badge {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .detail-photo {
+    min-height: 190px;
+    height: 190px;
+  }
+
+  .detail-grid > .detail-grid-card dt {
+    font-size: 0.72rem;
+  }
+
+  .detail-grid > .detail-grid-card dd {
+    font-size: 0.9rem;
+  }
+
+  .airport-board-head,
+  .airport-board-row {
+    grid-template-columns: minmax(0, 1fr) 72px minmax(94px, 1fr);
+    gap: 8px;
+  }
+
+  .airport-board-status {
+    line-height: 1.25;
+  }
+
+  .detail-status {
+    gap: 8px;
   }
 }
