@@ -302,6 +302,7 @@ const detailFields = [
   "Scheduled Departure",
   "Ground Speed",
   "Altitude",
+  "Registration",
   "Transponder",
   "Heading",
 ];
@@ -1045,6 +1046,10 @@ function getScheduledDepartureTileValue(flight) {
   return flight.scheduledDepartureDisplay || "Not filed";
 }
 
+function getRegistrationDisplayValue(flight) {
+  return String(flight?.registration || "").trim() || "Not filed";
+}
+
   function syncFlightPhaseMemory(flights) {
     const activeIds = new Set(flights.map((flight) => flight.movementKey || flight.id));
     Array.from(state.flightPhaseMemory.keys()).forEach((flightId) => {
@@ -1581,7 +1586,7 @@ function renderSelectedFlight(flyToMarker = false) {
     hideDetailRouteChip();
     elements.routeSummary.textContent =
       "Select a flight to draw its filed path from departure to destination.";
-    updateDetails(["Waiting", "Waiting", "Waiting", "Waiting", "Waiting", "Waiting", "Waiting", "Waiting"]);
+    updateDetails(["Waiting", "Waiting", "Waiting", "Waiting", "Waiting", "Waiting", "Waiting", "Waiting", "Waiting"]);
     clearRouteLayers();
     return;
   }
@@ -1604,6 +1609,7 @@ function renderSelectedFlight(flyToMarker = false) {
     getScheduledDepartureTileValue(selected),
     `${formatNumber(selected.groundspeed)} kt`,
     `${formatNumber(selected.altitude)} ft`,
+    getRegistrationDisplayValue(selected),
     selected.transponder,
     `${formatNumber(selected.heading)} deg`,
   ], getFlightDetailLabels(selected));
@@ -2040,10 +2046,20 @@ function getBaggageClaimLabel(airport, flight) {
 }
 
 function getFlightMediaCacheKey(flight) {
+  const registration = String(flight.registration || "").trim().toUpperCase();
+  if (registration) {
+    return ["flight", "registration", registration].join("|");
+  }
+
   return [
     "flight",
+    "instance",
+    flight.id || "",
+    flight.callsign || "",
     flight.airlineCode || "",
     flight.aircraftCode || "",
+    flight.departure || "",
+    flight.arrival || "",
   ].join("|");
 }
 
@@ -2755,38 +2771,44 @@ async function fetchAircraftPhoto(flight) {
   const exactAircraftTokens = getExactAircraftTokens(flight.aircraftName, flight.aircraftCode);
   const localDefaultKey = getLocalDefaultAircraftKey(flight);
 
-  if (localDefaultKey && localDefaultAircraftPhotos[localDefaultKey]) {
-    return {
-      url: localDefaultAircraftPhotos[localDefaultKey],
-      caption: `${flight.airlineName} ${flight.aircraftName} | local default`,
-    };
-  }
-
   if (flight.registration) {
-    const registrationSearches = [
-      `${flight.registration} ${flight.aircraftName}`,
-      `${flight.registration} ${flight.aircraftCode}`,
-      `${flight.registration}`,
+    const registrationVariants = getRegistrationSearchVariants(flight.registration);
+
+    for (const registrationVariant of registrationVariants) {
+      const registrationSearches = [
+        `${registrationVariant} ${flight.aircraftName}`,
+        `${registrationVariant} ${flight.aircraftCode}`,
+        `${registrationVariant} ${flight.airlineName}`,
+        `${registrationVariant}`,
       ];
-  
+
       for (const searchQuery of registrationSearches) {
         const registrationMatch = await fetchCommonsImage(searchQuery, (title, imageInfo) => {
-        const normalizedCoreMetadata = normalizeSearchText(extractImageCoreText(title, imageInfo));
-        const normalizedMetadata = normalizeSearchText(extractImageMetadataText(title, imageInfo));
-        return (
-          normalizedMetadata.includes(normalizeSearchText(flight.registration)) &&
-          matchesStrictAirline(normalizedCoreMetadata, preferredAirlineTokens)
-        );
+          const normalizedCoreMetadata = normalizeSearchText(extractImageCoreText(title, imageInfo));
+          const normalizedMetadata = normalizeSearchText(extractImageMetadataText(title, imageInfo));
+          return (
+            registrationVariants.some((variant) => normalizedMetadata.includes(normalizeSearchText(variant))) &&
+            matchesStrictAirline(normalizedCoreMetadata, preferredAirlineTokens)
+          );
         }, (title, imageInfo) => {
           const normalizedCoreMetadata = normalizeSearchText(extractImageCoreText(title, imageInfo));
-          return getAirlineMatchScore(normalizedCoreMetadata, preferredAirlineTokens);
+          const normalizedMetadata = normalizeSearchText(extractImageMetadataText(title, imageInfo));
+          const registrationScore = registrationVariants.some((variant) =>
+            normalizedMetadata.includes(normalizeSearchText(variant))
+          )
+            ? 10000
+            : 0;
+          return registrationScore +
+            getAirlineMatchScore(normalizedCoreMetadata, preferredAirlineTokens) * 100 +
+            getAircraftMatchScore(normalizedMetadata, exactAircraftTokens);
         });
 
-      if (registrationMatch) {
-        return {
-          url: registrationMatch,
-          caption: `${flight.airlineName} ${flight.aircraftName} | registration match`,
-        };
+        if (registrationMatch) {
+          return {
+            url: registrationMatch,
+            caption: `${flight.airlineName} ${flight.aircraftName} | registration match`,
+          };
+        }
       }
     }
   }
@@ -2831,6 +2853,13 @@ async function fetchAircraftPhoto(flight) {
         caption: `${flight.airlineName} ${flight.aircraftName} | exact match`,
       };
     }
+  }
+
+  if (localDefaultKey && localDefaultAircraftPhotos[localDefaultKey]) {
+    return {
+      url: localDefaultAircraftPhotos[localDefaultKey],
+      caption: `${flight.airlineName} ${flight.aircraftName} | local default`,
+    };
   }
 
   if (flight.airlineName && flight.airlineName !== flight.airlineCode) {
@@ -3498,6 +3527,35 @@ function extractRegistration(remarks) {
   const text = String(remarks || "").toUpperCase();
   const regMatch = text.match(/\bREG\/([A-Z0-9-]+)/);
   return regMatch ? regMatch[1] : "";
+}
+
+function getRegistrationSearchVariants(registration) {
+  const raw = String(registration || "").trim().toUpperCase();
+  const compact = raw.replace(/[^A-Z0-9]/g, "");
+
+  if (!compact) {
+    return [];
+  }
+
+  const variants = new Set([raw, compact]);
+
+  if (/^N[0-9]{1,5}[A-Z]{0,2}$/.test(compact)) {
+    variants.add(compact);
+  }
+
+  if (/^[A-Z]{1,2}[A-Z0-9]{3,5}$/.test(compact) && compact.length >= 5) {
+    variants.add(`${compact.slice(0, 1)}-${compact.slice(1)}`);
+  }
+
+  if (/^[A-Z]{2}[A-Z0-9]{3,5}$/.test(compact)) {
+    variants.add(`${compact.slice(0, 2)}-${compact.slice(2)}`);
+  }
+
+  if (/^[A-Z]{3}[A-Z0-9]{3,5}$/.test(compact)) {
+    variants.add(`${compact.slice(0, 3)}-${compact.slice(3)}`);
+  }
+
+  return Array.from(variants).filter(Boolean);
 }
 
 function isAcceptableAircraftPhoto(title, imageInfo) {
