@@ -3,168 +3,170 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>VATSIM Scope</title>
+    <title>Open Skies Exchange</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap"
       rel="stylesheet"
-    />
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin=""
     />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="shell">
-      <main class="workspace workspace--compact">
-        <section class="panel panel-map">
-          <div id="mapFloatingSearch" class="map-floating-search is-compact">
-            <div id="mapSearchMeta" class="map-search-meta is-hidden">
-              <p class="panel-kicker">Search Flights</p>
-              <p id="lastUpdated" class="muted">Waiting for first sync</p>
-            </div>
+    <div class="page-shell">
+      <header class="topbar">
+        <p class="brand-mark">Open Skies Exchange</p>
+        <div class="topbar-meta">
+          <span id="networkStatus" class="status-chip">Syncing network</span>
+          <span id="statsimStatus" class="status-chip status-chip--muted">StatSim routing</span>
+        </div>
+      </header>
 
-            <label id="searchOverlayField" class="search search--overlay">
-              <input
-                id="searchInput"
-                type="search"
-                placeholder="SWA123, KDEN, B738, Jane Doe"
-                autocomplete="off"
-              />
+      <main class="layout">
+        <section class="hero-card panel">
+          <p class="section-label hero-card__label">Itinerary planner</p>
+          <form id="searchForm" class="search-grid">
+            <label class="search-field search-field--origin">
+              Origin
+              <input id="originInput" name="origin" maxlength="4" placeholder="KDFW" list="airportOptions" required />
             </label>
+            <label class="search-field search-field--destination">
+              Destination
+              <input id="destinationInput" name="destination" maxlength="4" placeholder="VOMM" list="airportOptions" required />
+            </label>
+            <label class="search-field search-field--passengers">
+              Passengers
+              <select id="passengersInput" name="passengers">
+                <option value="1">1 traveler</option>
+                <option value="2">2 travelers</option>
+                <option value="3">3 travelers</option>
+                <option value="4">4 travelers</option>
+                <option value="5">5 travelers</option>
+                <option value="6">6 travelers</option>
+              </select>
+            </label>
+            <label class="search-field search-field--bags">
+              Checked bags
+              <select id="bagsInput" name="checkedBags">
+                <option value="0">0 bags</option>
+                <option value="1">1 bag</option>
+                <option value="2">2 bags</option>
+                <option value="3">3 bags</option>
+                <option value="4">4 bags</option>
+                <option value="5">5 bags</option>
+                <option value="6">6 bags</option>
+              </select>
+            </label>
+            <button class="cta-button search-grid__button" type="submit">Find itineraries</button>
+          </form>
 
-            <div id="mapSearchExtras" class="map-search-extras is-hidden">
-              <div class="legend">
-                <span><i class="dot dot-airborne"></i> Airborne</span>
-                <span><i class="dot dot-ground"></i> Ground</span>
-                <span><i class="dot dot-filter"></i> Selected</span>
-              </div>
+          <datalist id="airportOptions"></datalist>
 
-              <div id="flightList" class="flight-list flight-list--overlay" aria-live="polite"></div>
-            </div>
-            <button
-              id="searchPanelHandle"
-              class="map-search-handle"
-              type="button"
-              aria-label="Collapse or expand search panel"
-              aria-pressed="false"
-            ></button>
+          <div class="stats-row">
+            <article class="metric-card">
+              <span id="liveGroundCount">0</span>
+              <label>Grounded live departures</label>
+            </article>
+            <article class="metric-card">
+              <span id="prefileCount">0</span>
+              <label>Prefiled flights</label>
+            </article>
+            <article class="metric-card">
+              <span id="airportCount">0</span>
+              <label>Live network airports</label>
+            </article>
           </div>
-
-            <div class="map-toolbar">
-              <div class="map-toolbar-spacer"></div>
-              <div class="toolbar-actions">
-                <button id="followButton" class="ghost-button" type="button" aria-pressed="false">
-                  Follow
-                </button>
-              <button id="refreshButton" class="ghost-button" type="button">
-                Refresh Now
-              </button>
-            </div>
-          </div>
-          <div id="map" class="map" aria-label="Live VATSIM flight map"></div>
         </section>
 
-        <aside class="right-rail">
-          <section class="stats-strip">
-            <div class="hero-stats hero-stats--sidebar">
-              <section>
-                <span id="totalFlights">0</span>
-                <label>Tracked Flights</label>
-              </section>
-              <section>
-                <span id="activeDepartures">0</span>
-                <label>With Flight Plans</label>
-              </section>
-              <button id="recommendedAirportCard" class="hero-stat-button" type="button">
-                <span id="averageAltitude">--</span>
-                <label>Recommended Departure Airport</label>
-              </button>
+        <section class="results-column panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-label">Suggested itineraries</p>
+              <h2 id="itineraryTitle">Search to build a route</h2>
             </div>
-          </section>
+            <p id="itineraryMeta" class="helper-text">Routes are based on historical flying patterns and weekly frequency.</p>
+          </div>
+          <div id="itineraryList" class="results-list"></div>
+        </section>
 
-          <aside class="panel panel-details">
+        <section class="results-column panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-label">Available flights</p>
+              <h2 id="legFlightsTitle">Choose an itinerary first</h2>
+            </div>
+            <p id="legFlightsMeta" class="helper-text">For each leg we’ll show live, prefiled, and inferred flights if they exist.</p>
+          </div>
+          <div id="legTabs" class="leg-tabs"></div>
+          <div id="flightResultsList" class="results-list"></div>
+        </section>
+
+        <section class="booking-column">
+          <article class="panel seat-panel">
             <div class="panel-head">
               <div>
-                <p id="detailModeLabel" class="panel-kicker">Flight Detail</p>
-                <h2 id="detailCallsign">Select a flight</h2>
-                <button id="detailBackButton" class="ghost-button detail-back-button is-hidden" type="button">
-                  Back
-                </button>
+                <p class="section-label">Seat selection</p>
+                <h2 id="seatPanelTitle">Choose a leg flight first</h2>
               </div>
-              <div id="detailStatus" class="detail-status">
-                <div id="detailAirlineBadge" class="airline-badge airline-badge--empty">No airline</div>
-                <div class="detail-flight-state">
-                  <span id="detailFlightState" class="flight-state-pill">idle</span>
-                  <span id="detailFlightEta" class="flight-state-subline is-hidden"></span>
-                </div>
+              <div id="selectedFare" class="fare-pill">$0</div>
+            </div>
+            <div id="flightSummary" class="flight-summary flight-summary--empty">
+              Pick a flight from the active leg to view the aircraft layout.
+            </div>
+            <div id="seatLegend" class="seat-legend is-hidden">
+              <span><i class="seat-swatch seat-swatch--available"></i>Available</span>
+              <span><i class="seat-swatch seat-swatch--extra"></i>Extra legroom</span>
+              <span><i class="seat-swatch seat-swatch--premium"></i>Premium</span>
+              <span><i class="seat-swatch seat-swatch--reserved"></i>Reserved</span>
+              <span><i class="seat-swatch seat-swatch--selected"></i>Selected</span>
+            </div>
+            <div id="seatMap" class="seat-map seat-map--empty"></div>
+          </article>
+
+          <article class="panel checkout-panel">
+            <div class="panel-head">
+              <div>
+                <p class="section-label">Traveler details</p>
+                <h2>Complete the itinerary</h2>
               </div>
             </div>
 
-              <div class="detail-photo">
-                <img
-                  id="aircraftPhoto"
-                  alt="Selected aircraft"
-                  decoding="async"
-                  fetchpriority="high"
-                  loading="eager"
-                  src="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1200&q=80"
-                />
-              </div>
+            <div id="bookingNotice" class="booking-notice">
+              Pick an itinerary, then choose a flight for each leg before assigning seats.
+            </div>
 
-            <div id="detailRouteChip" class="detail-route-chip is-hidden" aria-hidden="true"></div>
+            <div id="selectedLegsSummary" class="segment-summary"></div>
+            <div id="passengerForms" class="passenger-forms"></div>
 
-            <dl class="detail-grid" id="detailGrid">
+            <div class="price-box">
               <div>
-                <dt>Pilot</dt>
-                <dd>Waiting</dd>
+                <span class="price-label">Estimated itinerary total</span>
+                <strong id="priceTotal">$0</strong>
               </div>
-              <div>
-                <dt>Aircraft</dt>
-                <dd>Waiting</dd>
-              </div>
-              <div>
-                <dt>Route</dt>
-                <dd>Waiting</dd>
-              </div>
-              <div>
-                <dt>Altitude</dt>
-                <dd>Waiting</dd>
-              </div>
-              <div>
-                <dt>Ground Speed</dt>
-                <dd>Waiting</dd>
-              </div>
-              <div>
-                <dt>Heading</dt>
-                <dd>Waiting</dd>
-              </div>
-              <div>
-                <dt>Transponder</dt>
-                <dd>Waiting</dd>
-              </div>
-              <div>
-                <dt>Remarks</dt>
-                <dd>Waiting</dd>
-              </div>
-            </dl>
+              <p id="priceBreakdown" class="helper-text">Includes each leg fare, taxes, bags, and seat upgrades.</p>
+            </div>
 
-            <p id="routeSummary" class="detail-note detail-note--hidden" aria-hidden="true"></p>
-          </aside>
-        </aside>
+            <button id="bookButton" class="cta-button cta-button--dark" type="button" disabled>
+              Reserve itinerary and create boarding passes
+            </button>
+          </article>
+        </section>
+
+        <section class="panel boarding-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-label">Boarding passes</p>
+              <h2 id="boardingTitle">Your itinerary confirmation will appear here</h2>
+            </div>
+            <p id="bookingReferenceText" class="helper-text"></p>
+          </div>
+          <div id="boardingPassArea" class="boarding-pass-area boarding-pass-area--empty">
+            Build an itinerary, choose flights, and complete the booking to generate segment passes.
+          </div>
+        </section>
       </main>
     </div>
 
-    <script
-      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-      crossorigin=""
-    ></script>
-    <script src="./airlines-data.js"></script>
-    <script src="./app.js"></script>
+    <script src="./booking-app.js"></script>
   </body>
 </html>

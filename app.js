@@ -1,4 +1,12 @@
-const VATSIM_DATA_URL = "https://data.vatsim.net/v3/vatsim-data.json";
+const IS_HTTP_CONTEXT =
+  typeof window !== "undefined" && /^https?:$/i.test(window.location.protocol);
+const USE_LOCAL_BACKEND =
+  IS_HTTP_CONTEXT &&
+  /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+const VATSIM_DATA_URL = USE_LOCAL_BACKEND
+  ? "/api/vatsim-data"
+  : "https://data.vatsim.net/v3/vatsim-data.json";
+const VATSIM_EVENTS_URL = USE_LOCAL_BACKEND ? "/api/events" : "";
 const AIRPORTS_DATA_URL =
   "https://cdn.jsdelivr.net/gh/jpatokal/openflights@master/data/airports.dat";
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
@@ -251,6 +259,8 @@ const state = {
   lastFollowPanAt: 0,
   searchPanelMinimized: false,
   recommendedDepartureAirportCode: "",
+  backendEventSource: null,
+  backendEventFallbackTimer: null,
   airlineNames: bundledAirlineNames
     ? {
         ...fallbackAirlineNames,
@@ -298,6 +308,7 @@ const elements = {
 const detailFields = [
   "Pilot",
   "Aircraft",
+  "Registration",
   "Route",
   "Scheduled Departure",
   "Ground Speed",
@@ -323,9 +334,65 @@ document.addEventListener("DOMContentLoaded", () => {
   wireEvents();
   renderFollowButton();
   renderLegend();
-  refreshFlights();
-  state.refreshTimer = window.setInterval(refreshFlights, REFRESH_INTERVAL_MS);
+  startDataSync();
 });
+
+function startDataSync() {
+  refreshFlights();
+
+  if (
+    typeof window !== "undefined" &&
+    /^https?:$/i.test(window.location.protocol) &&
+    typeof window.EventSource === "function" &&
+    VATSIM_EVENTS_URL
+  ) {
+    connectBackendEventStream();
+    return;
+  }
+
+  state.refreshTimer = window.setInterval(refreshFlights, REFRESH_INTERVAL_MS);
+}
+
+function scheduleFallbackRefreshPolling() {
+  if (state.refreshTimer) {
+    return;
+  }
+
+  state.refreshTimer = window.setInterval(refreshFlights, REFRESH_INTERVAL_MS);
+}
+
+function clearFallbackRefreshPolling() {
+  if (!state.refreshTimer) {
+    return;
+  }
+
+  window.clearInterval(state.refreshTimer);
+  state.refreshTimer = null;
+}
+
+function connectBackendEventStream() {
+  try {
+    state.backendEventSource?.close?.();
+  } catch {
+    // Ignore close failures.
+  }
+
+  const eventSource = new EventSource(VATSIM_EVENTS_URL);
+  state.backendEventSource = eventSource;
+
+  eventSource.addEventListener("vatsim-update", () => {
+    clearFallbackRefreshPolling();
+    refreshFlights();
+  });
+
+  eventSource.addEventListener("vatsim-error", () => {
+    scheduleFallbackRefreshPolling();
+  });
+
+  eventSource.onerror = () => {
+    scheduleFallbackRefreshPolling();
+  };
+}
 
 function initializeMap() {
   state.map = L.map("map", {
@@ -1030,11 +1097,35 @@ function getScheduledArrivalTime(scheduledDepartureTime, enrouteTime) {
 function getFlightDetailLabels(flight) {
   const labels = [...detailFields];
 
+  if (!flight.registration) {
+    labels.splice(2, 1);
+  }
+
   if (shouldUseArrivalSchedule(flight)) {
-    labels[3] = "Scheduled Arrival";
+    labels[flight.registration ? 4 : 3] = "Scheduled Arrival";
   }
 
   return labels;
+}
+
+function getFlightDetailValues(flight) {
+  const values = [
+    flight.pilotName,
+    `${flight.aircraftName} (${flight.aircraftCode})`,
+    flight.registration || "---",
+    flight.route,
+    getScheduledDepartureTileValue(flight),
+    `${formatNumber(flight.groundspeed)} kt`,
+    `${formatNumber(flight.altitude)} ft`,
+    flight.transponder,
+    `${formatNumber(flight.heading)} deg`,
+  ];
+
+  if (!flight.registration) {
+    values.splice(2, 1);
+  }
+
+  return values;
 }
 
 function getScheduledDepartureTileValue(flight) {
@@ -1581,7 +1672,7 @@ function renderSelectedFlight(flyToMarker = false) {
     hideDetailRouteChip();
     elements.routeSummary.textContent =
       "Select a flight to draw its filed path from departure to destination.";
-    updateDetails(["Waiting", "Waiting", "Waiting", "Waiting", "Waiting", "Waiting", "Waiting", "Waiting"]);
+    updateDetails(["Waiting", "Waiting", "Waiting", "Waiting", "Waiting", "Waiting", "Waiting", "Waiting", "Waiting"]);
     clearRouteLayers();
     return;
   }
@@ -1597,16 +1688,7 @@ function renderSelectedFlight(flyToMarker = false) {
   renderAirlineStatus(selected);
   renderDetailRouteChip(selected);
 
-  updateDetails([
-    selected.pilotName,
-    `${selected.aircraftName} (${selected.aircraftCode})`,
-    selected.route,
-    getScheduledDepartureTileValue(selected),
-    `${formatNumber(selected.groundspeed)} kt`,
-    `${formatNumber(selected.altitude)} ft`,
-    selected.transponder,
-    `${formatNumber(selected.heading)} deg`,
-  ], getFlightDetailLabels(selected));
+  updateDetails(getFlightDetailValues(selected), getFlightDetailLabels(selected));
 
   if (flyToMarker) {
     state.map.flyTo([selected.latitude, selected.longitude], Math.max(state.map.getZoom(), 4), {
@@ -2044,6 +2126,7 @@ function getFlightMediaCacheKey(flight) {
     "flight",
     flight.airlineCode || "",
     flight.aircraftCode || "",
+    flight.registration || "",
   ].join("|");
 }
 
@@ -2755,32 +2838,38 @@ async function fetchAircraftPhoto(flight) {
   const exactAircraftTokens = getExactAircraftTokens(flight.aircraftName, flight.aircraftCode);
   const localDefaultKey = getLocalDefaultAircraftKey(flight);
 
-  if (localDefaultKey && localDefaultAircraftPhotos[localDefaultKey]) {
-    return {
-      url: localDefaultAircraftPhotos[localDefaultKey],
-      caption: `${flight.airlineName} ${flight.aircraftName} | local default`,
-    };
-  }
-
   if (flight.registration) {
-    const registrationSearches = [
-      `${flight.registration} ${flight.aircraftName}`,
-      `${flight.registration} ${flight.aircraftCode}`,
-      `${flight.registration}`,
-      ];
-  
-      for (const searchQuery of registrationSearches) {
-        const registrationMatch = await fetchCommonsImage(searchQuery, (title, imageInfo) => {
-        const normalizedCoreMetadata = normalizeSearchText(extractImageCoreText(title, imageInfo));
-        const normalizedMetadata = normalizeSearchText(extractImageMetadataText(title, imageInfo));
+    const registrationVariants = getRegistrationSearchVariants(flight.registration);
+    const comparableRegistration = normalizeRegistrationComparable(flight.registration);
+    const registrationSearches = Array.from(new Set(registrationVariants.flatMap((registrationVariant) => [
+      `${registrationVariant} ${flight.aircraftName}`,
+      `${registrationVariant} ${flight.aircraftCode}`,
+      `${registrationVariant}`,
+    ])));
+
+    for (const searchQuery of registrationSearches) {
+      const registrationMatch = await fetchCommonsImage(searchQuery, (title, imageInfo) => {
+        const coreText = extractImageCoreText(title, imageInfo);
+        const metadataText = extractImageMetadataText(title, imageInfo);
+        const normalizedCoreMetadata = normalizeSearchText(coreText);
+        const normalizedMetadata = normalizeSearchText(metadataText);
+        const comparableMetadata = normalizeRegistrationComparable(`${title} ${coreText} ${metadataText}`);
         return (
-          normalizedMetadata.includes(normalizeSearchText(flight.registration)) &&
-          matchesStrictAirline(normalizedCoreMetadata, preferredAirlineTokens)
+          comparableMetadata.includes(comparableRegistration) &&
+          matchesStrictAirline(normalizedCoreMetadata, preferredAirlineTokens) &&
+          matchesExactAircraft(normalizedMetadata, exactAircraftTokens)
         );
-        }, (title, imageInfo) => {
-          const normalizedCoreMetadata = normalizeSearchText(extractImageCoreText(title, imageInfo));
-          return getAirlineMatchScore(normalizedCoreMetadata, preferredAirlineTokens);
-        });
+      }, (title, imageInfo) => {
+        const coreText = extractImageCoreText(title, imageInfo);
+        const metadataText = extractImageMetadataText(title, imageInfo);
+        const normalizedCoreMetadata = normalizeSearchText(coreText);
+        const normalizedMetadata = normalizeSearchText(metadataText);
+        const comparableMetadata = normalizeRegistrationComparable(`${title} ${coreText} ${metadataText}`);
+        const registrationScore = comparableMetadata.includes(comparableRegistration) ? 10000 : 0;
+        return registrationScore +
+          getAirlineMatchScore(normalizedCoreMetadata, preferredAirlineTokens) * 1000 +
+          getAircraftMatchScore(normalizedMetadata, exactAircraftTokens) * 100;
+      });
 
       if (registrationMatch) {
         return {
@@ -2831,6 +2920,13 @@ async function fetchAircraftPhoto(flight) {
         caption: `${flight.airlineName} ${flight.aircraftName} | exact match`,
       };
     }
+  }
+
+  if (localDefaultKey && localDefaultAircraftPhotos[localDefaultKey]) {
+    return {
+      url: localDefaultAircraftPhotos[localDefaultKey],
+      caption: `${flight.airlineName} ${flight.aircraftName} | local default`,
+    };
   }
 
   if (flight.airlineName && flight.airlineName !== flight.airlineCode) {
@@ -3496,8 +3592,100 @@ function extractAircraftCode(value) {
 
 function extractRegistration(remarks) {
   const text = String(remarks || "").toUpperCase();
-  const regMatch = text.match(/\bREG\/([A-Z0-9-]+)/);
-  return regMatch ? regMatch[1] : "";
+  if (!text) {
+    return "";
+  }
+
+  const explicitRegMatch = text.match(/\bREG(?:ISTRATION)?\s*[/:\-=\s]\s*([A-Z0-9-]{3,12})\b/);
+  if (explicitRegMatch) {
+    return explicitRegMatch[1];
+  }
+
+  const fallbackPatterns = [
+    /\bN\d{1,5}[A-Z]{0,2}\b/,
+    /\b(?:HB|LN|OO|OY|PH|PR|SE|SP|SX|TC|TF|VH|VT|XA|XB|XC|YR|ZK|ZS|9K|A4|A6|A7|A9|AP|CC|CS|EI|HA|HK|HZ|JY|LV|LX|OE|OH|OK|OM|PS|PT)-[A-Z0-9]{2,5}\b/,
+    /\b(?:HB|LN|OO|OY|PH|PR|SE|SP|SX|TC|TF|VH|VT|XA|XB|XC|YR|ZK|ZS|9K|A4|A6|A7|A9|AP|CC|CS|EI|HA|HK|HZ|JY|LV|LX|OE|OH|OK|OM|PS|PT|D|F|G|B|C)[A-Z0-9]{3,5}\b/,
+  ];
+
+  for (const pattern of fallbackPatterns) {
+    const fallbackMatch = text.match(pattern);
+    if (fallbackMatch) {
+      return fallbackMatch[0];
+    }
+  }
+
+  return "";
+}
+
+function normalizeRegistrationComparable(value) {
+  return String(value || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function getRegistrationSearchVariants(registration) {
+  const raw = String(registration || "").toUpperCase().trim();
+  if (!raw) {
+    return [];
+  }
+
+  const compact = normalizeRegistrationComparable(raw);
+  const variants = new Set([raw, compact]);
+  const hyphenatedPrefixes = [
+    "HB",
+    "LN",
+    "OO",
+    "OY",
+    "PH",
+    "PR",
+    "SE",
+    "SP",
+    "SX",
+    "TC",
+    "TF",
+    "VH",
+    "VT",
+    "XA",
+    "XB",
+    "XC",
+    "YR",
+    "ZK",
+    "ZS",
+    "9K",
+    "A4",
+    "A6",
+    "A7",
+    "A9",
+    "AP",
+    "CC",
+    "CS",
+    "EI",
+    "HA",
+    "HK",
+    "HZ",
+    "JY",
+    "LV",
+    "LX",
+    "OE",
+    "OH",
+    "OK",
+    "OM",
+    "PS",
+    "PT",
+    "D",
+    "F",
+    "G",
+    "B",
+    "C",
+  ];
+
+  for (const prefix of hyphenatedPrefixes) {
+    if (compact.startsWith(prefix) && compact.length > prefix.length + 1) {
+      variants.add(`${prefix}-${compact.slice(prefix.length)}`);
+    }
+  }
+
+  return Array.from(variants);
 }
 
 function isAcceptableAircraftPhoto(title, imageInfo) {
