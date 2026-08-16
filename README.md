@@ -1,6 +1,6 @@
 # VATSIM Scope
 
-A clean, map-first VATSIM flight tracker prototype with a lightweight always-on Node backend.
+A clean, map-first VATSIM flight tracker prototype built as a static frontend.
 
 ## What it does
 
@@ -12,45 +12,26 @@ A clean, map-first VATSIM flight tracker prototype with a lightweight always-on 
 
 ## Local run
 
-### Preferred: always-on backend
+This machine does not currently have Node.js or Python installed, so the repo includes a tiny PowerShell static server.
 
-This version now includes a small Node server that:
-- polls the VATSIM feed every 15 seconds
-- caches the latest snapshot in memory
-- serves the frontend and a local API
-
-1. Install Node.js 18+
-2. Open PowerShell in this folder
-3. Run:
-
-```powershell
-npm start
-```
-
-4. Open [http://localhost:8080](http://localhost:8080)
-
-Useful backend endpoints:
-- [http://localhost:8080/api/vatsim-data](http://localhost:8080/api/vatsim-data)
-- [http://localhost:8080/api/health](http://localhost:8080/api/health)
-- [http://localhost:8080/api/events](http://localhost:8080/api/events) (Server-Sent Events stream)
-
-The frontend now:
-- uses `/api/vatsim-data` instead of talking to VATSIM directly
-- subscribes to `/api/events`
-- falls back to client polling only if the event stream is unavailable
-
-### Fallback: static-only preview
-
-If you only want to preview the frontend without the backend, you can still use:
+1. Open PowerShell in this folder
+2. Run:
 
 ```powershell
 .\serve.ps1
 ```
 
+3. Open [http://localhost:8080](http://localhost:8080)
+
+If your PowerShell execution policy blocks the script, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\serve.ps1
+```
+
 ## Notes
 
-- Backend poll source: `https://data.vatsim.net/v3/vatsim-data.json`
-- Backend poll interval: 15 seconds
+- Data source: `https://data.vatsim.net/v3/vatsim-data.json`
+- Refresh interval: 15 seconds
 - Aircraft photos are best-effort and not guaranteed to match the exact livery for every flight
-- The frontend now prefers `/api/vatsim-data` when served over HTTP, and falls back to the public VATSIM feed only in static/file scenarios
-- For a true always-on deployment, host `server.js` on an always-running platform such as Render, Fly.io, Railway, or EC2
+- This is a frontend prototype, so there is no server-side caching, rate limiting, or image licensing layer yet
